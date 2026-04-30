@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DMN Tabellen-Editor</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@300;400;600;700&display=swap');
+:root {
+  --bg:#0d1117;--surface:#161b22;--surface2:#1c2330;--border:#30363d;
+  --accent-dev:#f78166;--accent-fach:#3fb950;--accent-blue:#58a6ff;
+  --text:#e6edf3;--text-muted:#8b949e;
+  --row-even:#1a2030;--row-hover:#1f2d3d;--shadow:0 8px 32px rgba(0,0,0,.5);--radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;font-size:13px;min-height:100vh}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;
+  display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.logo{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;color:var(--accent-blue);white-space:nowrap}
+.logo span{color:var(--text-muted);font-weight:400}
+.header-meta{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.doc-name{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-info{font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace}
+.header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0}
+.mode-toggle{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.mode-btn{padding:6px 14px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;
+  font-family:'Sora',sans-serif;font-size:12px;font-weight:600;transition:all .2s;display:flex;align-items:center;gap:6px}
+.mode-btn.active-dev{background:rgba(247,129,102,.15);color:var(--accent-dev)}
+.mode-btn.active-fach{background:rgba(63,185,80,.15);color:var(--accent-fach)}
+.dot{width:7px;height:7px;border-radius:50%;animation:pulse 2s infinite}
+.dev-mode .dot{background:var(--accent-dev)}.fach-mode .dot{background:var(--accent-fach)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.btn{padding:7px 14px;border-radius:6px;border:1px solid var(--border);cursor:pointer;
+  font-family:'Sora',sans-serif;font-size:12px;font-weight:600;transition:all .2s;
+  display:flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{background:var(--accent-blue);color:#0d1117;border-color:var(--accent-blue)}
+.btn-primary:hover{opacity:.85}
+.btn-success{background:rgba(63,185,80,.15);color:var(--accent-fach);border-color:var(--accent-fach)}
+.btn-success:hover{background:rgba(63,185,80,.25)}
+.btn-danger{background:rgba(247,129,102,.1);color:var(--accent-dev);border-color:var(--accent-dev)}
+.btn-danger:hover{background:rgba(247,129,102,.2)}
+.btn-ghost{background:transparent;color:var(--text-muted)}
+.btn-ghost:hover{color:var(--text);background:var(--surface2)}
+/* SHARE */
+.share-panel{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;margin:10px 20px;display:none;flex-direction:column;gap:10px}
+.share-panel.visible{display:flex}
+.share-hdr{display:flex;align-items:center;gap:12px}
+.share-item{display:flex;align-items:center;gap:10px;background:var(--bg);
+  border:1px solid var(--border);border-radius:6px;padding:8px 12px}
+.share-lbl input{background:transparent;border:none;color:var(--text-muted);
+  font-family:'Sora',sans-serif;font-size:11px;width:130px;outline:none;cursor:text}
+.share-lbl input:focus{color:var(--text)}
+.share-url-inp{flex:1;background:transparent;border:none;color:var(--accent-blue);
+  font-family:'JetBrains Mono',monospace;font-size:10px;outline:none;cursor:pointer;min-width:0}
+.share-ts{font-size:10px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.del-btn{width:22px;height:22px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);
+  color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.del-btn:hover{color:var(--accent-dev);border-color:var(--accent-dev)}
+.share-empty{text-align:center;padding:18px;color:var(--text-muted);font-size:12px}
+/* NOTICE */
+.notice{padding:8px 20px;font-size:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.notice-fach{background:rgba(63,185,80,.08);border-bottom:1px solid rgba(63,185,80,.2);color:var(--accent-fach)}
+.notice-dev{background:rgba(247,129,102,.06);border-bottom:1px solid rgba(247,129,102,.15);color:var(--accent-dev)}
+.chip{background:rgba(88,166,255,.12);color:var(--accent-blue);padding:2px 8px;
+  border-radius:10px;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace}
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;gap:10px;padding:10px 20px;
+  background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.sep{width:1px;height:24px;background:var(--border)}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--bg);
+  border:1px solid var(--border);border-radius:6px;padding:6px 12px;min-width:180px}
+.search-box input{background:transparent;border:none;color:var(--text);
+  font-family:'Sora',sans-serif;font-size:12px;outline:none;width:100%}
+.search-box input::placeholder{color:var(--text-muted)}
+.stats{margin-left:auto;display:flex;gap:14px;font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace}
+.sv{color:var(--accent-blue);font-weight:600}
+/* TABLE */
+.table-wrap{overflow:auto;max-height:calc(100vh - 155px);padding:0 20px 20px;margin-top:12px}
+table{border-collapse:collapse;min-width:100%;font-size:12px}
+th,td{border:1px solid var(--border);padding:0;white-space:nowrap;position:relative}
+th:first-child,td:first-child{position:sticky;left:0;z-index:10;background:var(--surface2);min-width:160px}
+thead th{background:var(--surface2);color:var(--text-muted);font-family:'JetBrains Mono',monospace;
+  font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;
+  position:sticky;top:0;z-index:20}
+thead th:first-child{z-index:30}
+.th-inner{display:flex;flex-direction:column;gap:1px;padding:7px 10px}
+.th-sub{font-size:9px;opacity:.5}
+.th-lbl{color:var(--text)}
+.col-input .th-lbl{color:#7ee787}
+.col-idesc .th-lbl{color:#a5d6ff}
+.col-output .th-lbl{color:#d2a8ff}
+.col-odesc .th-lbl{color:#ffa657}
+.col-expr .th-lbl{color:var(--text-muted);opacity:.5}
+tr.rulerow{background:var(--bg)}
+tr.rulerow:nth-child(even){background:var(--row-even)}
+tr:hover{background:var(--row-hover)!important}
+tr.sel{background:rgba(88,166,255,.12)!important;outline:1px inset rgba(88,166,255,.4)}
+.row-lbl{padding:5px 10px;min-height:32px;display:flex;align-items:center;gap:8px;position:relative}
+.rnum{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-muted);opacity:.5;min-width:22px}
+.ann-cell{min-width:80px;font-size:12px}
+.row-acts{display:none;gap:3px;margin-left:auto}
+tr:hover .row-acts{display:flex}
+.ract{width:20px;height:20px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);
+  color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px}
+.ract:hover{color:var(--text);background:var(--surface)}
+.ract.del:hover{color:var(--accent-dev);border-color:var(--accent-dev)}
+.ract.dup:hover{color:var(--accent-blue);border-color:var(--accent-blue)}
+.ract.mv:hover{color:var(--accent-fach);border-color:var(--accent-fach)}
+.cell{padding:5px 10px;min-height:32px;display:flex;align-items:center;
+  min-width:80px;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+.cell.ed:hover{background:rgba(88,166,255,.06);outline:1px dashed rgba(88,166,255,.35);border-radius:3px;cursor:text}
+input.cedit{background:rgba(88,166,255,.08);border:1px solid var(--accent-blue);color:var(--text);
+  padding:4px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;width:100%;
+  outline:none;border-radius:4px;min-width:80px}
+/* DROPZONE */
+.dropzone{border:2px dashed var(--border);border-radius:12px;padding:60px 40px;
+  text-align:center;margin:40px auto;max-width:480px;cursor:pointer;transition:all .3s}
+.dropzone:hover,.dropzone.over{border-color:var(--accent-blue);background:rgba(88,166,255,.05)}
+.dz-icon{font-size:48px;margin-bottom:16px}
+.dropzone h3{font-size:16px;margin-bottom:8px}
+.dropzone p{font-size:12px;color:var(--text-muted)}
+/* MODAL */
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center}
+.modal-ov.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:24px;width:90%;max-width:420px;box-shadow:var(--shadow)}
+.modal h3{font-size:15px;margin-bottom:16px}
+.modal label{font-size:11px;color:var(--text-muted);display:block;margin-bottom:5px}
+.modal input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
+  padding:8px 12px;border-radius:6px;font-family:'Sora',sans-serif;font-size:13px;margin-bottom:14px;outline:none}
+.modal input:focus{border-color:var(--accent-blue)}
+.modal-acts{display:flex;gap:10px;justify-content:flex-end;margin-top:4px}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;padding:11px 18px;color:var(--text);font-size:13px;box-shadow:var(--shadow);
+  z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;display:flex;align-items:center;gap:10px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{border-color:var(--accent-fach)}.toast.error{border-color:var(--accent-dev)}
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#484f58}
+body.fach-mode .dev-only{display:none!important}
+</style>
+</head>
+<body class="dev-mode">
+
+<header>
+  <div class="logo">DMN<span>/editor</span> <span style="font-size:9px;color:var(--text-muted);font-weight:400;letter-spacing:.05em;vertical-align:middle">v1.5.0</span></div>
+  <div class="header-meta">
+    <div class="doc-name" id="docName">Keine Datei geladen</div>
+    <div class="doc-info" id="docInfo">–</div>
+  </div>
+  <div class="header-actions">
+    <div class="mode-toggle">
+      <button class="mode-btn active-dev" id="btnDev" onclick="setMode('dev')">
+        <span class="dot"></span>Entwicklung
+      </button>
+      <button class="mode-btn" id="btnFach" onclick="setMode('fach')">
+        <span class="dot"></span>Fachabteilung
+      </button>
+    </div>
+    <label class="btn btn-primary" for="fileInp">⬆ Import CSV
+      <input type="file" id="fileInp" accept=".csv,.txt" style="display:none" onchange="importFile(this)">
+    </label>
+    <button class="btn btn-success" onclick="exportCSV()">⬇ Export CSV</button>
+    <button class="btn btn-ghost dev-only" onclick="toggleShare()">🔗 Teilen</button>
+  </div>
+</header>
+
+<!-- SHARE -->
+<div class="share-panel" id="sharePanel">
+  <div class="share-hdr">
+    <span style="font-size:13px;font-weight:600;color:var(--text)">🔗 Freigabe-Links</span>
+    <span style="font-size:11px;color:var(--text-muted)">Jeder Link enthält den aktuellen Datenstand</span>
+    <button class="btn btn-primary" onclick="createShareLink()" style="margin-left:auto">+ Neuen Link erstellen</button>
+    <button class="btn btn-ghost" style="padding:4px 10px" onclick="toggleShare()">✕</button>
+  </div>
+  <div id="shareList"></div>
+</div>
+
+<!-- NOTICES -->
+<div class="notice notice-fach" id="noticeFach" style="display:none">
+  🔒 Fachabteilungs-Modus &nbsp;|&nbsp;
+  <span class="chip">INPUT</span> Eingabewerte &nbsp;
+  <span class="chip">OUTPUT</span> Ausgabewerte &nbsp;
+  — Descriptions, Expressions &amp; Metadaten ausgeblendet
+</div>
+<div class="notice notice-dev" id="noticeDev">
+  🔧 Entwicklungsmodus &nbsp;|&nbsp; Alle Spalten sichtbar &nbsp;|&nbsp; Vollzugriff
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar" id="toolbar" style="display:none">
+  <div class="search-box">
+    <span style="color:var(--text-muted)">🔍</span>
+    <input type="text" placeholder="Suchen …" id="searchInp" oninput="renderBody()">
+  </div>
+  <div class="sep"></div>
+  <button class="btn btn-ghost dev-only" onclick="addRuleRow()">+ Regel hinzufügen</button>
+  <div class="sep dev-only"></div>
+  <button class="btn btn-danger dev-only" onclick="deleteSelected()">🗑 Ausgewählte löschen</button>
+  <div class="stats" id="statsBar"></div>
+</div>
+
+<!-- DROP / TABLE -->
+<div id="dropWrap">
+  <div style="display:flex;justify-content:center">
+    <div class="dropzone" id="dz"
+         onclick="document.getElementById('fileInp').click()"
+         ondragover="event.preventDefault();this.classList.add('over')"
+         ondragleave="this.classList.remove('over')"
+         ondrop="handleDrop(event)">
+      <div class="dz-icon">📋</div>
+      <h3>DMN CSV-Datei importieren</h3>
+      <p>Klicken oder Datei hier hineinziehen<br><br>
+         Semikolon-getrennte DMN-Tabelle · bis zu 10.000 Zeilen · 1.000 Spalten</p>
+    </div>
+  </div>
+</div>
+
+<div class="table-wrap" id="tableWrap" style="display:none">
+  <table><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+</div>
+
+<!-- MODAL -->
+<div class="modal-ov" id="addModal">
+  <div class="modal">
+    <h3>Neue Regelzeile hinzufügen</h3>
+    <label>Annotation / Bezeichnung</label>
+    <input type="text" id="newAnn" placeholder="z.B. Aufgabe Nr. 99"
+           onkeydown="if(event.key==='Enter')confirmAdd()">
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="confirmAdd()">Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────
+let rawRows   = [];
+let colMeta   = [];   // {c, ct, label, cssClass, visFach, editFach, editDev}
+let shareLinks = [];
+let selected  = new Set();
+let editCell  = null;
+let mode      = 'dev';
+let fileName  = '';
+
+// ── CSV ────────────────────────────────────────────────────
+function parseCSV(text) {
+  return text.split(/\r?\n/).filter(l=>l.trim()).map(parseLine);
+}
+function parseLine(line) {
+  const cells=[]; let cur='', inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+    else if(c===';'&&!inQ){cells.push(cur);cur='';}
+    else cur+=c;
+  }
+  cells.push(cur); return cells;
+}
+function serializeCSV(rows){
+  return rows.map(r=>r.map(v=>{
+    const s=v==null?'':String(v);
+    return(s.includes(';')||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;
+  }).join(';')).join('\r\n')+'\r\n';
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── COLUMN META ────────────────────────────────────────────
+function buildColMeta(){
+  colMeta=[];
+  const hdr=rawRows.find(r=>r[0]==='RULE'&&r[1]==='ANNOTATION');
+  if(!hdr)return;
+  const maxC=Math.min(hdr.length,1000);
+
+  // collect variable names from INPUT/OUTPUT definition rows
+  const inputDefs  = rawRows.filter(r=>r[0]==='INPUT' &&r[1]==='');
+  const outputDefs = rawRows.filter(r=>r[0]==='OUTPUT'&&r[1]==='');
+  let iIdx=0, oIdx=0;
+  const varNames={};
+  for(let c=0;c<maxC;c++){
+    const ct=hdr[c]||'';
+    if(ct==='INPUT')  {varNames[c]=inputDefs[iIdx]?inputDefs[iIdx][2]:''; iIdx++;}
+    if(ct==='OUTPUT') {varNames[c]=outputDefs[oIdx]?outputDefs[oIdx][2]:''; oIdx++;}
+  }
+
+  for(let c=0;c<maxC;c++){
+    const ct=hdr[c]||'other';
+    const isAnn  =ct==='ANNOTATION';
+    const isIn   =ct==='INPUT';
+    const isIExpr=ct==='INPUT_EXPRESSION';
+    const isIDesc=ct==='INPUT_DESCRIPTION';
+    const isOut  =ct==='OUTPUT';
+    const isOExpr=ct==='OUTPUT_EXPRESSION';
+    const isODesc=ct==='OUTPUT_DESCRIPTION';
+
+    // Fach view: only INPUT + OUTPUT (no expressions, no descriptions, no annotation col — annotation is in frozen col-0)
+    const visFach = isIn||isOut;
+    const editFach= isIn||isOut; // annotation handled separately
+    const editDev = c>0;
+
+    let label=ct, cssClass='';
+    if(isAnn)  {label='Bezeichnung';}
+    if(isIn)   {label=varNames[c]||'Input';    cssClass='col-input';}
+    if(isIExpr){label='⚙ Expression';           cssClass='col-expr';}
+    if(isIDesc){label='Beschreibung (Input)';   cssClass='col-idesc';}
+    if(isOut)  {label=varNames[c]||'Output';   cssClass='col-output';}
+    if(isOExpr){label='⚙ Expression';           cssClass='col-expr';}
+    if(isODesc){label='Beschreibung (Output)';  cssClass='col-odesc';}
+
+    colMeta.push({c,ct,label,cssClass,visFach,editFach,editDev,isAnn});
+  }
+}
+
+function visCols(){
+  if(mode==='dev') return colMeta.filter(m=>!m.isAnn); // annotation in col-0
+  return colMeta.filter(m=>m.visFach&&!m.isAnn);
+}
+
+// ── IMPORT ─────────────────────────────────────────────────
+function importFile(inp){
+  const f=inp.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>loadData(e.target.result,f.name);
+  r.readAsText(f,'UTF-8'); inp.value='';
+}
+function handleDrop(e){
+  e.preventDefault(); document.getElementById('dz').classList.remove('over');
+  const f=e.dataTransfer.files[0]; if(!f)return;
+  const r=new FileReader(); r.onload=ev=>loadData(ev.target.result,f.name);
+  r.readAsText(f,'UTF-8');
+}
+function loadData(text,name){
+  const parsed=parseCSV(text);
+  if(!parsed.length){toast('Keine Daten gefunden','error');return;}
+  rawRows=parsed.slice(0,10000).map(r=>r.slice(0,1000));
+  const maxLen=Math.max(...rawRows.map(r=>r.length));
+  rawRows=rawRows.map(r=>{while(r.length<maxLen)r.push('');return r;});
+  fileName=name;
+  buildColMeta();
+  setDocInfo();
+  showTable();
+  renderAll();
+  toast(`✓ ${name} geladen`,'success');
+}
+function setDocInfo(){
+  document.getElementById('docName').textContent=fileName;
+  const rules=rawRows.filter(r=>r[0]==='RULE'&&r[1]!=='ANNOTATION').length;
+  const ins=colMeta.filter(m=>m.ct==='INPUT').length;
+  const outs=colMeta.filter(m=>m.ct==='OUTPUT').length;
+  document.getElementById('docInfo').textContent=`${rules} Regeln · ${ins} Inputs · ${outs} Outputs`;
+}
+function showTable(){
+  document.getElementById('dropWrap').style.display='none';
+  document.getElementById('tableWrap').style.display='block';
+  document.getElementById('toolbar').style.display='flex';
+}
+
+// ── RENDER ─────────────────────────────────────────────────
+function renderAll(){renderHead();renderBody();updateStats();}
+
+function renderHead(){
+  const cols=visCols();
+  let h='<tr><th><div class="th-inner"><span class="th-sub">REGEL</span><span class="th-lbl">Bezeichnung</span></div></th>';
+  for(const m of cols){
+    h+=`<th class="${m.cssClass}"><div class="th-inner">
+      <span class="th-sub">${esc(m.ct)}</span>
+      <span class="th-lbl">${esc(m.label)}</span>
+    </div></th>`;
+  }
+  h+='</tr>';
+  document.getElementById('thead').innerHTML=h;
+}
+
+function renderBody(){
+  const search=(document.getElementById('searchInp').value||'').toLowerCase();
+  const cols=visCols();
+  const annMeta=colMeta.find(m=>m.isAnn);
+  const annC=annMeta?annMeta.c:1;
+
+  // data rows = RULE rows excluding the header RULE row
+  const dataRows=rawRows.map((r,i)=>({r,i})).filter(({r})=>r[0]==='RULE'&&r[1]!=='ANNOTATION');
+  const filtered=dataRows.filter(({r})=>!search||r.some(c=>c.toLowerCase().includes(search)));
+
+  let h='';
+  filtered.forEach(({r,i},rowNum)=>{
+    const isSel=selected.has(i);
+    const ann=r[annC]||'';
+    h+=`<tr class="rulerow${isSel?' sel':''}" onclick="selRow(event,${i})">`;
+    // frozen col-0: annotation + actions
+    h+=`<td><div class="row-lbl">
+      <span class="rnum">${rowNum+1}</span>
+      <span class="ann-cell cell ed" ondblclick="startEdit(event,${i},${annC})">${esc(ann)}</span>
+      <div class="row-acts">
+        ${mode==='dev'?`
+        <button class="ract mv" onclick="event.stopPropagation();moveRow(${i},-1)" title="↑">↑</button>
+        <button class="ract mv" onclick="event.stopPropagation();moveRow(${i},1)"  title="↓">↓</button>
+        <button class="ract dup" onclick="event.stopPropagation();dupRow(${i})"   title="Duplizieren">⧉</button>`:''}
+        <button class="ract del" onclick="event.stopPropagation();delRow(${i})"   title="Löschen">✕</button>
+      </div>
+    </div></td>`;
+    // data cols
+    for(const m of cols){
+      const val=r[m.c]||'';
+      const canEdit=mode==='dev'?m.editDev:m.editFach;
+      if(canEdit){
+        h+=`<td><div class="cell ed" ondblclick="startEdit(event,${i},${m.c})" title="${esc(val)}">${esc(val)}</div></td>`;
+      } else {
+        h+=`<td><div class="cell" style="opacity:.4;font-style:italic" title="${esc(val)}">${esc(val)}</div></td>`;
+      }
+    }
+    h+='</tr>';
+  });
+  if(!h) h=`<tr><td colspan="999" style="text-align:center;padding:40px;color:var(--text-muted)">${search?'Keine Treffer':'Keine Regelzeilen'}</td></tr>`;
+  document.getElementById('tbody').innerHTML=h;
+}
+
+function updateStats(){
+  const rules=rawRows.filter(r=>r[0]==='RULE'&&r[1]!=='ANNOTATION').length;
+  document.getElementById('statsBar').innerHTML=
+    `<span>Regeln: <span class="sv">${rules}</span></span>
+     <span>Inputs: <span class="sv">${colMeta.filter(m=>m.ct==='INPUT').length}</span></span>
+     <span>Outputs: <span class="sv">${colMeta.filter(m=>m.ct==='OUTPUT').length}</span></span>`;
+}
+
+// ── CELL EDIT ──────────────────────────────────────────────
+function startEdit(e,ri,ci){
+  e.stopPropagation(); if(editCell)commitEdit();
+  const div=e.currentTarget; const val=rawRows[ri][ci]||'';
+  editCell={ri,ci,div};
+  div.innerHTML=`<input class="cedit" value="${esc(val)}"
+    onblur="commitEdit()" onkeydown="editKey(event)"
+    style="min-width:${Math.max(80,val.length*7)}px">`;
+  const inp=div.querySelector('input'); inp.focus(); inp.select();
+}
+function commitEdit(){
+  if(!editCell)return;
+  const{ri,ci,div}=editCell;
+  const inp=div.querySelector('input');
+  if(inp){rawRows[ri][ci]=inp.value; div.innerHTML=esc(inp.value);}
+  editCell=null;
+}
+function editKey(e){
+  if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();commitEdit();}
+  if(e.key==='Escape'){
+    if(!editCell)return;
+    const{ri,ci,div}=editCell; div.innerHTML=esc(rawRows[ri][ci]||''); editCell=null;
+  }
+}
+
+// ── ROW OPS ────────────────────────────────────────────────
+function delRow(ri){rawRows.splice(ri,1);selected.delete(ri);renderBody();updateStats();toast('Zeile gelöscht','success');}
+function dupRow(ri){rawRows.splice(ri+1,0,[...rawRows[ri]]);renderBody();updateStats();toast('Zeile dupliziert','success');}
+function moveRow(ri,dir){
+  const t=ri+dir; if(t<0||t>=rawRows.length)return;
+  [rawRows[ri],rawRows[t]]=[rawRows[t],rawRows[ri]]; renderBody();
+}
+function selRow(e,ri){
+  if(editCell)return;
+  if(e.ctrlKey||e.metaKey){selected.has(ri)?selected.delete(ri):selected.add(ri);}
+  else if(e.shiftKey&&selected.size){const l=Math.max(...selected);for(let i=Math.min(l,ri);i<=Math.max(l,ri);i++)selected.add(i);}
+  else{selected.clear();selected.add(ri);}
+  renderBody();
+}
+function deleteSelected(){
+  if(!selected.size){toast('Keine Zeilen ausgewählt','error');return;}
+  [...selected].sort((a,b)=>b-a).forEach(i=>rawRows.splice(i,1));
+  selected.clear();renderBody();updateStats();toast('Zeilen gelöscht','success');
+}
+function addRuleRow(){document.getElementById('addModal').classList.add('open');}
+function closeModal(){document.getElementById('addModal').classList.remove('open');}
+function confirmAdd(){
+  const ann=document.getElementById('newAnn').value.trim();
+  const newRow=new Array(rawRows[0]?.length||2).fill('');
+  newRow[0]='RULE';
+  const ac=colMeta.find(m=>m.isAnn)?.c||1;
+  newRow[ac]=ann;
+  rawRows.push(newRow);
+  closeModal(); document.getElementById('newAnn').value='';
+  renderBody(); updateStats();
+  setTimeout(()=>{const t=document.getElementById('tableWrap');t.scrollTop=t.scrollHeight;},80);
+  toast('Regelzeile hinzugefügt','success');
+}
+
+// ── MODE ───────────────────────────────────────────────────
+function setMode(m){
+  mode=m;
+  document.body.className=m+'-mode';
+  document.getElementById('btnDev').className ='mode-btn'+(m==='dev'?' active-dev':'');
+  document.getElementById('btnFach').className='mode-btn'+(m==='fach'?' active-fach':'');
+  document.getElementById('noticeFach').style.display=m==='fach'?'flex':'none';
+  document.getElementById('noticeDev').style.display =m==='dev' ?'flex':'none';
+  if(rawRows.length)renderAll();
+  toast(m==='dev'?'🔧 Entwicklungsmodus':'📋 Fachabteilungs-Modus','success');
+}
+
+// ── EXPORT ─────────────────────────────────────────────────
+function exportCSV(){
+  if(!rawRows.length){toast('Keine Daten','error');return;}
+  const csv=serializeCSV(rawRows);
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=fileName||'dmn-export.csv'; a.click();
+  URL.revokeObjectURL(url); toast('✓ CSV exportiert','success');
+}
+
+// ── LZString compression (self-contained, no CDN) ──────────
+// Produces URLs ~65% shorter than plain base64
+const LZString=(()=>{
+  const f='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-';
+  function compress(s,bpw,gv){
+    if(s==null)return'';
+    let ctx={},ctxD={},dp=3,dpm=2,dc=2,wc=0,w='',r='',res=[],mw=0,bi=0,bv=0;
+    function add(v,bp){mw=Math.max(mw,bp);bv=(bv<<bp)|v;bi+=bp;while(bi>=6){res.push(f[bv>>>(bi-6)&63]);bi-=6;}}
+    for(let i=0;i<s.length;i++){
+      let c=s[i],cc=s.charCodeAt(i);
+      if(!ctx[c]){ctx[c]=dp++;ctxD[c]=true;}
+      let wc=w+c;
+      if(ctx[wc]!==undefined){w=wc;}else{
+        if(ctxD[w]!==undefined){
+          if(w.charCodeAt(0)<256){add(0,dc);add(w.charCodeAt(0),8);}
+          else{add(1,dc);add(w.charCodeAt(0),16);}
+          ctxD[w]=undefined;
+        }else{add(ctx[w],dc);}
+        dpm--;
+        if(dpm===0){dpm=Math.pow(2,dc);dc++;}
+        ctx[wc]=dp++;
+        w=String(c);
+      }
+    }
+    if(w!==''){
+      if(ctxD[w]!==undefined){
+        if(w.charCodeAt(0)<256){add(0,dc);add(w.charCodeAt(0),8);}
+        else{add(1,dc);add(w.charCodeAt(0),16);}
+        ctxD[w]=undefined;
+      }else{add(ctx[w],dc);}
+      dpm--;if(dpm===0){dpm=Math.pow(2,dc);dc++;}
+    }
+    add(2,dc);
+    while(true){bv<<=1;bi++;if(bi>=6){res.push(f[bv>>>(bi-6)&63]);bi-=6;break;}else if(bi>=6){res.push(f[bv>>>(bi-6)&63]);bi-=6;}}
+    return res.join('');
+  }
+  function decompress(s){
+    if(s==null||s==='')return'';
+    const d={},dr={};let dp=4,dc=3,dpm=8,e='',r='',bi=0,bv=0,idx=0,w,c,rep;
+    for(let i=0;i<s.length;i++)dr[i]=f.indexOf(s[i]);
+    function bits(n){let o=0;while(n-->0){bv=(bv<<1)|(dr[idx]>>(5-bi)&1);bi++;if(bi===6){bi=0;idx++;}o=(o<<1)|(bv&1);bv>>=1;}return o;}
+    // simplified – use the proven LZString URI approach below
+    return null;
+  }
+  // Use the proven compressToEncodedURIComponent / decompressFromEncodedURIComponent
+  // Inline the full LZString library:
+  const keyStrUriSafe='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$';
+  const baseReverseDic={};
+  function getBaseValue(a,b){if(!baseReverseDic[a]){baseReverseDic[a]={};for(let i=0;i<a.length;i++)baseReverseDic[a][a[i]]=i;}return baseReverseDic[a][b];}
+
+  function _compress(uncompressed,bitsPerChar,getCharFromInt){
+    if(uncompressed==null)return'';
+    let i,value,ctxD={},ctxDT={},ctxDTT={},ctxW='',ctxWC='',ctxC,ctxDictSize=3,ctxNumBits=2,ctxDataVal=0,ctxDataPos=0,dataArr=[],totalLength=0;
+    function append(v){ctxDataVal=(ctxDataVal<<1)|v;if(++ctxDataPos===bitsPerChar){ctxDataPos=0;dataArr.push(getCharFromInt(ctxDataVal));totalLength++;ctxDataVal=0;}}
+    function appendNum(num,maxBits){for(let j=maxBits-1;j>=0;j--)append((num>>j)&1);}
+    for(let ii=0;ii<uncompressed.length;ii++){
+      ctxC=uncompressed[ii];
+      if(!Object.prototype.hasOwnProperty.call(ctxD,ctxC)){ctxD[ctxC]='';ctxDT[ctxC]=1;ctxDTT[ctxC]=1;}
+      ctxWC=ctxW+ctxC;
+      if(Object.prototype.hasOwnProperty.call(ctxD,ctxWC)){ctxW=ctxWC;}
+      else{
+        if(Object.prototype.hasOwnProperty.call(ctxDT,ctxW)){
+          if(ctxW.charCodeAt(0)<256){appendNum(0,ctxNumBits);appendNum(ctxW.charCodeAt(0),8);}
+          else{appendNum(1,ctxNumBits);appendNum(ctxW.charCodeAt(0),16);}
+          ctxDictSize--;if(ctxDictSize===0){ctxDictSize=Math.pow(2,ctxNumBits);ctxNumBits++;}
+        }else{appendNum(ctxD[ctxW],ctxNumBits);}
+        ctxDictSize--;if(ctxDictSize===0){ctxDictSize=Math.pow(2,ctxNumBits);ctxNumBits++;}
+        ctxD[ctxWC]=ctxDictSize+2;
+        ctxW=String(ctxC);
+      }
+    }
+    if(ctxW!==''){
+      if(Object.prototype.hasOwnProperty.call(ctxDT,ctxW)){
+        if(ctxW.charCodeAt(0)<256){appendNum(0,ctxNumBits);appendNum(ctxW.charCodeAt(0),8);}
+        else{appendNum(1,ctxNumBits);appendNum(ctxW.charCodeAt(0),16);}
+        ctxDictSize--;if(ctxDictSize===0){ctxDictSize=Math.pow(2,ctxNumBits);ctxNumBits++;}
+      }else{appendNum(ctxD[ctxW],ctxNumBits);}
+      ctxDictSize--;if(ctxDictSize===0){ctxDictSize=Math.pow(2,ctxNumBits);ctxNumBits++;}
+    }
+    appendNum(2,ctxNumBits);
+    while(true){ctxDataVal<<=1;if(ctxDataPos===bitsPerChar-1){dataArr.push(getCharFromInt(ctxDataVal));break;}else ctxDataPos++;}
+    return dataArr.join('');
+  }
+
+  function _decompress(length,resetValue,getNextValue){
+    let dictionary=[],next,enlargeIn=4,dictSize=4,numBits=3,entry='',result=[],i,w,bits,resb,maxpower,power,c,data={val:getNextValue(0),position:resetValue,index:1};
+    for(i=0;i<3;i++)dictionary[i]=i;
+    bits=0;maxpower=Math.pow(2,2);power=1;
+    while(power!==maxpower){resb=data.val&data.position;data.position>>=1;if(data.position===0){data.position=resetValue;data.val=getNextValue(data.index++);}bits|=(resb>0?1:0)*power;power<<=1;}
+    switch(next=bits){
+      case 0:bits=0;maxpower=Math.pow(2,8);power=1;while(power!==maxpower){resb=data.val&data.position;data.position>>=1;if(data.position===0){data.position=resetValue;data.val=getNextValue(data.index++);}bits|=(resb>0?1:0)*power;power<<=1;}c=String.fromCharCode(bits);break;
+      case 1:bits=0;maxpower=Math.pow(2,16);power=1;while(power!==maxpower){resb=data.val&data.position;data.position>>=1;if(data.position===0){data.position=resetValue;data.val=getNextValue(data.index++);}bits|=(resb>0?1:0)*power;power<<=1;}c=String.fromCharCode(bits);break;
+      case 2:return'';
+    }
+    dictionary[3]=c;w=c;result.push(c);
+    while(true){
+      if(data.index>length)return'';
+      bits=0;maxpower=Math.pow(2,numBits);power=1;
+      while(power!==maxpower){resb=data.val&data.position;data.position>>=1;if(data.position===0){data.position=resetValue;data.val=getNextValue(data.index++);}bits|=(resb>0?1:0)*power;power<<=1;}
+      switch(c=bits){
+        case 0:bits=0;maxpower=Math.pow(2,8);power=1;while(power!==maxpower){resb=data.val&data.position;data.position>>=1;if(data.position===0){data.position=resetValue;data.val=getNextValue(data.index++);}bits|=(resb>0?1:0)*power;power<<=1;}dictionary[dictSize++]=String.fromCharCode(bits);c=dictSize-1;enlargeIn--;break;
+        case 1:bits=0;maxpower=Math.pow(2,16);power=1;while(power!==maxpower){resb=data.val&data.position;data.position>>=1;if(data.position===0){data.position=resetValue;data.val=getNextValue(data.index++);}bits|=(resb>0?1:0)*power;power<<=1;}dictionary[dictSize++]=String.fromCharCode(bits);c=dictSize-1;enlargeIn--;break;
+        case 2:return result.join('');
+      }
+      if(enlargeIn===0){enlargeIn=Math.pow(2,numBits);numBits++;}
+      if(dictionary[c]){entry=dictionary[c];}else{if(c===dictSize){entry=w+w[0];}else return null;}
+      result.push(entry);dictionary[dictSize++]=w+entry[0];enlargeIn--;
+      if(enlargeIn===0){enlargeIn=Math.pow(2,numBits);numBits++;}
+      w=entry;
+    }
+  }
+
+  return {
+    compressToEncodedURIComponent(str){
+      return _compress(str,6,a=>keyStrUriSafe[a]).replace(/ /g,'+');
+    },
+    decompressFromEncodedURIComponent(str){
+      if(str==null)return'';
+      str=str.replace(/\+/g,' ');
+      return _decompress(str.length,32,idx=>getBaseValue(keyStrUriSafe,str[idx]));
+    }
+  };
+})();
+
+function lzEncode(str){ return LZString.compressToEncodedURIComponent(str); }
+function lzDecode(str){ return LZString.decompressFromEncodedURIComponent(str)||null; }
+
+// ── SHARE  — speichert CSV im Artifact-Storage, gibt kurzen Link zurück ──
+function toggleShare(){
+  document.getElementById('sharePanel').classList.toggle('visible');
+  renderShareList();
+}
+
+async function createShareLink(){
+  if(!rawRows.length){toast('Keine Daten zum Teilen','error');return;}
+
+  const id  = Date.now();
+  const now = new Date();
+  const ts  = now.toLocaleDateString('de-DE')+' '+now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  const csv = serializeCSV(rawRows);
+  const csvKb = (csv.length/1024).toFixed(1);
+
+  shareLinks.push({id, label:'Freigabe '+(shareLinks.length+1), url:null, csv, ts, csvKb, loading:true});
+  renderShareList();
+  toast('⏳ Speichere …','');
+
+  // Generiere eine kurze ID (8 Zeichen) und speichere CSV im Artifact-Storage
+  const shortId = Math.random().toString(36).slice(2,6) + Math.random().toString(36).slice(2,6);
+  const storeKey = 'dmn_share_' + shortId;
+
+  try {
+    const result = await window.storage.set(storeKey, csv, true); // shared=true → andere können lesen
+    if(result){
+      const base = window.location.href.split('#')[0];
+      const shortUrl = base + '#id=' + shortId;
+      const sl = shareLinks.find(s=>s.id===id);
+      if(sl){ sl.url=shortUrl; sl.shortId=shortId; sl.storeKey=storeKey; sl.loading=false; sl.urlKb=(shortUrl.length/1024).toFixed(2); }
+      renderShareList();
+      toast(`✓ Kurzlink erstellt!`,'success');
+      return;
+    }
+  } catch(e){}
+
+  // Fallback: LZ-komprimiert in URL
+  const enc = lzEncode(csv);
+  const base = window.location.href.split('#')[0];
+  const fallbackUrl = base+'#share='+enc;
+  const sl = shareLinks.find(s=>s.id===id);
+  if(sl){ sl.url=fallbackUrl; sl.loading=false; sl.urlKb=(fallbackUrl.length/1024).toFixed(1); }
+  renderShareList();
+  toast('Storage nicht verfügbar – langer Link als Fallback','error');
+}
+
+function renderShareList(){
+  const el=document.getElementById('shareList');
+  if(!shareLinks.length){
+    el.innerHTML='<div class="share-empty">Noch keine Freigaben — klicke „+ Neuen Link erstellen"</div>';
+    return;
+  }
+  el.innerHTML=shareLinks.map(sl=>`
+    <div class="share-item" style="flex-direction:column;gap:8px;align-items:stretch">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div class="share-lbl">
+          <input type="text" value="${esc(sl.label)}" onchange="renameShare(${sl.id},this.value)" title="Bezeichnung bearbeiten">
+        </div>
+        <span class="share-ts" style="margin-left:auto;color:var(--text-muted)">
+          ${sl.ts} · <span style="color:var(--accent-fach)">${sl.csvKb} KB</span>
+        </span>
+        ${sl.loading
+          ? `<span style="color:var(--text-muted);font-size:12px">⏳ Speichere …</span>`
+          : `<button class="btn btn-primary" style="padding:5px 12px;font-size:11px" onclick="copyLink(${sl.id})">📋 Link kopieren</button>
+             <button class="btn btn-success" style="padding:5px 11px;font-size:11px" onclick="downloadShare(${sl.id})">⬇ CSV</button>
+             ${sl.storeKey?`<button class="btn btn-danger" style="padding:5px 10px;font-size:11px" onclick="delShare(${sl.id})">✕</button>`
+               :`<button class="del-btn" onclick="delShare(${sl.id})">✕</button>`}`
+        }
+      </div>
+      ${sl.loading?'':`
+        <div style="display:flex;align-items:center;gap:10px;background:var(--bg);
+                    border:1px solid var(--border);border-radius:6px;padding:8px 12px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">
+              ${sl.shortId
+                ? `✅ Kurzlink (${sl.urlKb} KB) — in Outlook einfügen oder als Hyperlink hinterlegen:`
+                : `⚠ Langer Link (${sl.urlKb} KB) — Fallback:`}
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent-blue);
+                        word-break:break-all;cursor:pointer;user-select:all"
+                 onclick="copyLink(${sl.id})" title="Klicken zum Kopieren">
+              ${esc(sl.url||'')}
+            </div>
+          </div>
+          <canvas id="qr-${sl.id}" width="72" height="72"
+            style="flex-shrink:0;border-radius:4px;background:#fff;padding:3px"
+            title="QR-Code scannen"></canvas>
+        </div>`}
+    </div>`).join('');
+
+  // QR Codes zeichnen
+  shareLinks.filter(sl=>!sl.loading&&sl.url).forEach(sl=>{
+    setTimeout(()=>{
+      const canvas=document.getElementById('qr-'+sl.id); if(!canvas)return;
+      const img=new Image();
+      img.onload=()=>canvas.getContext('2d').drawImage(img,0,0,72,72);
+      img.src='https://api.qrserver.com/v1/create-qr-code/?size=144x144&margin=2&data='+encodeURIComponent(sl.url);
+    },100);
+  });
+}
+
+function downloadShare(id){
+  const sl=shareLinks.find(s=>s.id===id); if(!sl)return;
+  const blob=new Blob([sl.csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=(sl.label||'freigabe').replace(/\s+/g,'_')+'.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+  toast(`⬇ CSV gespeichert`,'success');
+}
+
+function copyLink(id){
+  const sl=shareLinks.find(s=>s.id===id); if(!sl||!sl.url)return;
+  navigator.clipboard.writeText(sl.url).catch(()=>{
+    const t=document.createElement('textarea');t.value=sl.url;
+    document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);
+  });
+  toast(`📋 Link kopiert!`,'success');
+}
+
+async function delShare(id){
+  const sl=shareLinks.find(s=>s.id===id); if(!sl)return;
+  if(sl.storeKey){ try{ await window.storage.delete(sl.storeKey, true); }catch(e){} }
+  shareLinks=shareLinks.filter(s=>s.id!==id); renderShareList();
+}
+function renameShare(id,label){const sl=shareLinks.find(s=>s.id===id);if(sl)sl.label=label;}
+
+// ── TOAST ──────────────────────────────────────────────────
+function toast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show '+type;
+  clearTimeout(t._t);t._t=setTimeout(()=>t.className='toast',3000);
+}
+
+// ── INIT ───────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async ()=>{
+  document.getElementById('noticeFach').style.display='none';
+  document.getElementById('noticeDev').style.display='flex';
+
+  const hash=window.location.hash;
+
+  // ── Kurzlink via Artifact-Storage: #id=XXXXXXXX
+  if(hash.startsWith('#id=')){
+    const shortId=hash.slice(4);
+    const storeKey='dmn_share_'+shortId;
+    toast('⏳ Lade Tabelle …','');
+    try{
+      const result=await window.storage.get(storeKey, true); // shared=true
+      if(result && result.value){
+        loadSharedCSV(result.value);
+        return;
+      }
+    }catch(e){}
+    showError('Dieser Link ist abgelaufen oder ungültig. Bitte neuen Link anfordern.');
+    return;
+  }
+
+  // ── Langer komprimierter Link: #share=ENCODED (Fallback)
+  if(hash.startsWith('#share=')){
+    const encoded=hash.slice(7);
+    const csv=lzDecode(encoded);
+    if(!csv){ showError('Link konnte nicht dekodiert werden.'); return; }
+    loadSharedCSV(csv);
+    return;
+  }
+});
+
+function loadSharedCSV(csv){
+  let parsed;
+  try{ parsed=parseCSV(csv); }catch(e){ showError('CSV-Daten fehlerhaft.'); return; }
+  if(!parsed.length){ showError('Keine Daten im Link gefunden.'); return; }
+  rawRows=parsed.slice(0,10000).map(r=>r.slice(0,1000));
+  const maxLen=Math.max(...rawRows.map(r=>r.length));
+  rawRows=rawRows.map(r=>{while(r.length<maxLen)r.push('');return r;});
+  const nameRow=rawRows.find(r=>r[0]==='META'&&r[1]!=='KENNZEICHEN'&&r[1]!=='');
+  fileName=(nameRow?nameRow[1]:'geteilt')+'.csv';
+  buildColMeta(); setDocInfo(); showTable(); setMode('fach');
+  toast('✓ Geteilte DMN-Tabelle geladen','success');
+}
+
+function showError(msg){
+  document.getElementById('dropWrap').style.display='block';
+  document.getElementById('dz').innerHTML=`
+    <div class="dz-icon">⚠️</div>
+    <h3 style="color:var(--accent-dev);margin-bottom:12px">Link ungültig</h3>
+    <p>${msg}<br><br>Sie können auch direkt eine CSV-Datei importieren.</p>`;
+  toast(msg,'error');
+}
+</script>
+</body>
+</html>
